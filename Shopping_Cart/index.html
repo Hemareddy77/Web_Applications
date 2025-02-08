@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shopping Cart</title>
+    <title>Shopping Cart (OOP)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -17,6 +17,7 @@
         }
         .container {
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             margin-top: 20px;
         }
@@ -58,78 +59,156 @@
         .cart h3 {
             color: #28a745;
         }
+        .cart-controls {
+            display: flex;
+            gap: 5px;
+        }
         h4 {
             margin-top: 15px;
             text-align: right;
             font-size: 18px;
             color: #d9534f;
         }
+        .checkout {
+            margin-top: 10px;
+            width: 100%;
+            padding: 10px;
+            background: #28a745;
+        }
+        .checkout:hover {
+            background: #218838;
+        }
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .items, .cart {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Shopping Cart Page</h1>
+    <h1>Shopping Cart (OOP)</h1>
     <div class="container">
         <div class="items">
             <h3>Available Items</h3>
-            <div class="item" data-name="Laptop" data-price="999">
-                <img src="https://th.bing.com/th/id/OIP.DLRLitiNsit7bTV1G3tv-gHaGD?w=234&h=191&c=7&r=0&o=5&dpr=1.4&pid=1.7" alt="Laptop">
-                <span>Laptop - $999</span>
-                <button onclick="addToCart(this)">Add</button>
-            </div>
-            <div class="item" data-name="Smartphone" data-price="699">
-                <img src="https://th.bing.com/th/id/OIP.pCWe0XlmUQD9WORY4jsW8AHaGs?w=201&h=182&c=7&r=0&o=5&dpr=1.4&pid=1.7" alt="Smartphone">
-                <span>Smartphone - $699</span>
-                <button onclick="addToCart(this)">Add</button>
-            </div>
-            <div class="item" data-name="Headphones" data-price="199">
-                <img src="https://th.bing.com/th/id/OIP.Ed6KaB02wzXTp90FA-tOhwHaHa?w=1000&h=1000&rs=1&pid=ImgDetMain" alt="Headphones">
-                <span>Headphones - $199</span>
-                <button onclick="addToCart(this)">Add</button>
-            </div>
+            <div id="item-list"></div>
         </div>
         <div class="cart">
             <h3>Shopping Cart</h3>
             <div id="cart-items"></div>
             <h4>Total: $<span id="total">0</span></h4>
+            <button class="checkout" onclick="cart.checkout()">Checkout</button>
         </div>
     </div>
+
     <script>
-        let cart = [];
-        
-        function addToCart(button) {
-            let item = button.parentElement;
-            let name = item.getAttribute('data-name');
-            let price = parseFloat(item.getAttribute('data-price'));
-            
-            let existing = cart.find(i => i.name === name);
-            if (existing) {
-                existing.quantity += 1;
-            } else {
-                cart.push({ name, price, quantity: 1 });
+        class Product {
+            constructor(name, price, image) {
+                this.name = name;
+                this.price = price;
+                this.image = image;
             }
-            updateCart();
-        }
-        
-        function updateCart() {
-            let cartContainer = document.getElementById('cart-items');
-            let total = 0;
-            cartContainer.innerHTML = '';
-            
-            cart.forEach(item => {
-                total += item.price * item.quantity;
-                cartContainer.innerHTML += `
-                    <div class="cart-item">
-                        <span>${item.name} - $${item.price} x ${item.quantity}</span>
-                        <button onclick="removeFromCart('${item.name}')">Remove</button>
+
+            render() {
+                return `
+                    <div class="item" data-name="${this.name}" data-price="${this.price}">
+                        <img src="${this.image}" alt="${this.name}">
+                        <span>${this.name} - $${this.price}</span>
+                        <button onclick="cart.addItem('${this.name}', ${this.price})">Add</button>
                     </div>`;
-            });
-            document.getElementById('total').innerText = total;
+            }
         }
-        
-        function removeFromCart(name) {
-            cart = cart.filter(item => item.name !== name);
-            updateCart();
+
+        class Cart {
+            constructor() {
+                this.items = JSON.parse(localStorage.getItem('cart')) || [];
+                this.render();
+            }
+
+            addItem(name, price) {
+                let existingItem = this.items.find(item => item.name === name);
+                if (existingItem) {
+                    existingItem.quantity += 1;
+                } else {
+                    this.items.push({ name, price, quantity: 1 });
+                }
+                this.save();
+            }
+
+            removeItem(name) {
+                this.items = this.items.filter(item => item.name !== name);
+                this.save();
+            }
+
+            changeQuantity(name, change) {
+                let item = this.items.find(item => item.name === name);
+                if (item) {
+                    item.quantity += change;
+                    if (item.quantity <= 0) {
+                        this.removeItem(name);
+                    }
+                }
+                this.save();
+            }
+
+            save() {
+                localStorage.setItem('cart', JSON.stringify(this.items));
+                this.render();
+            }
+
+            getTotal() {
+                return this.items.reduce((total, item) => total + item.price * item.quantity, 0);
+            }
+
+            render() {
+                let cartContainer = document.getElementById('cart-items');
+                let totalDisplay = document.getElementById('total');
+                cartContainer.innerHTML = '';
+
+                if (this.items.length === 0) {
+                    cartContainer.innerHTML = '<p>Cart is empty</p>';
+                } else {
+                    this.items.forEach(item => {
+                        cartContainer.innerHTML += `
+                            <div class="cart-item">
+                                <span>${item.name} - $${item.price} x ${item.quantity}</span>
+                                <div class="cart-controls">
+                                    <button onclick="cart.changeQuantity('${item.name}', -1)">-</button>
+                                    <button onclick="cart.changeQuantity('${item.name}', 1)">+</button>
+                                </div>
+                            </div>`;
+                    });
+                }
+
+                totalDisplay.innerText = this.getTotal().toFixed(2);
+            }
+
+            checkout() {
+                if (this.items.length === 0) {
+                    alert('Your cart is empty!');
+                    return;
+                }
+                alert('Thank you for your purchase!');
+                this.items = [];
+                this.save();
+            }
         }
+
+        const products = [
+            new Product('Gaming PC', 1500, 'https://encrypted-tbn1.gstatic.com/shopping?q=tbn:ANd9GcT9yBDo9qImD919zt25PlmDWQiNk1ciwg1cdyy8cniBnUred8HGR05eM2MQex3uOSKZsbtkvYQF5YZIr-2qQAzAyJfTlDcVFsQ_XnZ_u15ECS4jWBs4JPQG5Q'),
+            new Product('Smartwatch', 250, 'https://encrypted-tbn3.gstatic.com/shopping?q=tbn:ANd9GcSDJJp__1E90YyDcrEc2745WGczCmzdHZSxPk8Ld8gJ7kjZppHnQ_k3MCEhAr8wEvEJRlWdL5M_nL6LvlK48z7chVxEUWVhWUGMRQOo-ggk0ziEjLLhiRUA'),
+            new Product('Wireless Earbuds', 120, 'https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcS9-jEG-lUyT9HGlqqyxDq9ktzwZFjmF_Agb4SXS66n3Dtm0LGAT__PYF_ngldKBHQrmeh5OMAefx1uBm_Hh1Zd3qB-f-qEaaIWWxWUcXqZ')
+        ];
+
+        function renderProducts() {
+            document.getElementById('item-list').innerHTML = products.map(product => product.render()).join('');
+        }
+
+        const cart = new Cart();
+        renderProducts();
     </script>
 </body>
 </html>
